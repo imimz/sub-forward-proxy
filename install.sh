@@ -84,10 +84,13 @@ $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 $path   = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
 $qs     = (isset($_SERVER['QUERY_STRING']) && $_SERVER['QUERY_STRING'] !== '') ? ('?' . $_SERVER['QUERY_STRING']) : '';
 if ($path === '/' || $path === '/healthz' || $path === '/health') { header('Content-Type: text/plain; charset=utf-8'); echo "RH Sub-Proxy is running.\n"; exit; }
-$allowed = false;
+$routeTarget = null;
+foreach (($cfg['routes'] ?? []) as $re => $dest) { if (@preg_match($re, $path)) { $routeTarget = $dest; break; } }
+$allowed = $routeTarget !== null;
 foreach (($cfg['allow_paths'] ?? []) as $re) { if (@preg_match($re, $path)) { $allowed = true; break; } }
 if (!$allowed) { http_response_code(403); header('Content-Type: text/plain; charset=utf-8'); echo "Forbidden\n"; exit; }
-$tp = @parse_url($cfg['target']); $origin = (is_array($tp) && !empty($tp['host'])) ? (($tp['scheme'] ?? 'https') . '://' . $tp['host'] . (isset($tp['port']) ? ':' . $tp['port'] : '')) : rtrim($cfg['target'], '/');
+$base = $routeTarget ?? $cfg['target'];
+$tp = @parse_url($base); $origin = (is_array($tp) && !empty($tp['host'])) ? (($tp['scheme'] ?? 'https') . '://' . $tp['host'] . (isset($tp['port']) ? ':' . $tp['port'] : '')) : rtrim($base, '/');
 $target = $origin . $path . $qs;
 $ch = curl_init($target);
 if ($ch === false) { http_response_code(500); echo "init error\n"; exit; }
@@ -137,6 +140,7 @@ return [
         '#^/api/sub#i',
         '#^/[A-Za-z0-9._-]+/[A-Za-z0-9._-]+\$#',
     ],
+    'routes'          => [],
     'ssl_verify'      => false,
     'timeout'         => 25,
     'connect_timeout' => 10,

@@ -37,8 +37,14 @@ if ($path === '/' || $path === '/healthz' || $path === '/health') {
     exit;
 }
 
+// ── optional per-path upstreams, e.g. an emergency-charge service on the panel ──
+$routeTarget = null;
+foreach (($cfg['routes'] ?? []) as $re => $dest) {
+    if (@preg_match($re, $path)) { $routeTarget = $dest; break; }
+}
+
 // ── allow-list: never act as an open proxy ──
-$allowed = false;
+$allowed = $routeTarget !== null;
 foreach (($cfg['allow_paths'] ?? []) as $re) {
     if (@preg_match($re, $path)) { $allowed = true; break; }
 }
@@ -52,11 +58,12 @@ if (!$allowed) {
 // Normalise the configured target down to its ORIGIN (scheme://host[:port]),
 // ignoring any path the admin may have accidentally appended (e.g. ".../sub/"),
 // so we never produce a doubled path like ".../sub//sub/<token>".
-$tp = @parse_url($cfg['target']);
+$base = $routeTarget ?? $cfg['target'];
+$tp = @parse_url($base);
 if (is_array($tp) && !empty($tp['host'])) {
     $origin = ($tp['scheme'] ?? 'https') . '://' . $tp['host'] . (isset($tp['port']) ? ':' . $tp['port'] : '');
 } else {
-    $origin = rtrim($cfg['target'], '/');
+    $origin = rtrim($base, '/');
 }
 $target = $origin . $path . $qs;
 

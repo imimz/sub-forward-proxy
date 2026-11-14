@@ -25,6 +25,12 @@ return [
         '#^/[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$#',  // marzban-style /<token>/<name>
     ],
 
+    // Optional: send some paths to a different upstream instead of `target`.
+    // Matching paths are allowed automatically (no need to add them to allow_paths).
+    // Example: the subscription template's emergency-charge service on the panel:
+    //   '#^/emergency-charge/?$#' => 'https://panel1.example.com:8765',
+    'routes' => [],
+
     // The foreign panel often uses a self-signed cert on :8000 → keep false.
     'ssl_verify'      => false,
 
